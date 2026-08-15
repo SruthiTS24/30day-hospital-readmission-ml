@@ -43,11 +43,12 @@ def load_artifacts():
     feature_columns = joblib.load(os.path.join(SCRIPT_DIR, "feature_columns.pkl"))
     final_threshold = joblib.load(os.path.join(SCRIPT_DIR, "final_threshold.pkl"))
     default_row = joblib.load(os.path.join(SCRIPT_DIR, "default_row.pkl"))
+    shap_background_sample = joblib.load(os.path.join(SCRIPT_DIR, "shap_background_sample.pkl"))
     rf_model_only = rf_tuned.named_steps["rf"]
     explainer = shap.TreeExplainer(rf_model_only)
-    return rf_tuned, feature_columns, final_threshold, default_row, explainer
+    return rf_tuned, feature_columns, final_threshold, default_row, explainer, shap_background_sample
 
-rf_tuned, feature_columns, final_threshold, default_row, explainer = load_artifacts()
+rf_tuned, feature_columns, final_threshold, default_row, explainer, shap_background_sample = load_artifacts()
 
 # ---------------------------------------------------------
 # Feature builder — converts simple user input into the full
@@ -136,21 +137,53 @@ if st.button("Predict Readmission Risk", type="primary"):
                f"over-flagging low-risk patients)")
 
     # -----------------------------------------------------
-    # Feature importance context
+    # SHAP explanation for this patient
+    # Computed as part of a batch with real background patients,
+    # since single-row SHAP calls proved numerically unstable for
+    # this model during testing. The user's row is appended to a
+    # sample of real patients, and only their result is displayed.
     # -----------------------------------------------------
     st.divider()
-    st.subheader("What typically drives this model's predictions?")
-    st.markdown(
-        "Based on SHAP analysis performed during model development, this "
-        "model's predictions are influenced by factors including prior "
-        "hospital visit history, medication patterns, diagnosis category, "
-        "and admission details. Live per-patient SHAP explanations are not "
-        "shown here, as this deep Random Forest model produced numerically "
-        "unstable SHAP outputs for individual predictions during testing "
-        "(a known limitation of TreeExplainer on unconstrained tree "
-        "ensembles). Full global and individual SHAP analysis, computed "
-        "and verified offline, is documented in the project notebook."
-    )
+    st.subheader("Why this prediction?")
+    st.markdown("The chart below shows which factors pushed this patient's "
+                "risk score up (red) or down (blue) from the average.")
+
+    try:
+        batch_df = pd.concat([shap_background_sample, patient_df], ignore_index=True)
+        batch_shap_values = explainer.shap_values(batch_df, check_additivity=False, approximate=True)
+        batch_shap_class1 = batch_shap_values[:, :, 1]
+
+        # The user's patient is the last row in the batch
+        patient_shap = batch_shap_class1[-1]
+
+        fig, ax = plt.subplots(figsize=(8, 5))
+        shap.plots.waterfall(
+            shap.Explanation(
+                values=patient_shap,
+                base_values=explainer.expected_value[1],
+                data=patient_df.iloc[0],
+                feature_names=feature_columns
+            ),
+            max_display=10,
+            show=False
+        )
+        st.pyplot(fig)
+
+        st.caption(
+            "Note: This model shows signs of overfitting to training data "
+            "(see project documentation) and relies partly on sparse categorical "
+            "patterns. Explanations reflect the model's actual learned behavior, "
+            "which may not always align with the most clinically intuitive factors."
+        )
+    except Exception:
+        st.info(
+            "A live per-patient explanation could not be generated reliably "
+            "for this input. Based on SHAP analysis performed during model "
+            "development, this model's predictions are influenced by factors "
+            "including prior hospital visit history, medication patterns, "
+            "diagnosis category, and admission details. Full SHAP analysis "
+            "is documented in the project notebook."
+        )
 
 st.divider()
 st.caption(
