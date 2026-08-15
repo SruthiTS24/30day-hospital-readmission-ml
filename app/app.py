@@ -136,34 +136,20 @@ if st.button("Predict Readmission Risk", type="primary"):
                f"over-flagging low-risk patients)")
 
     # -----------------------------------------------------
-    # SHAP explanation for this patient
+    # Feature importance context
     # -----------------------------------------------------
     st.divider()
-    st.subheader("Why this prediction?")
-    st.markdown("The chart below shows which factors pushed this patient's "
-                "risk score up (red) or down (blue) from the average.")
-
-    shap_values = explainer.shap_values(patient_df, check_additivity=False)
-    shap_class1 = shap_values[:, :, 1][0]
-
-    fig, ax = plt.subplots(figsize=(8, 5))
-    shap.plots.waterfall(
-        shap.Explanation(
-            values=shap_class1,
-            base_values=explainer.expected_value[1],
-            data=patient_df.iloc[0],
-            feature_names=feature_columns
-        ),
-        max_display=10,
-        show=False
-    )
-    st.pyplot(fig)
-
-    st.caption(
-        "Note: This model shows signs of overfitting to training data "
-        "(see project documentation) and relies partly on sparse categorical "
-        "patterns. Explanations reflect the model's actual learned behavior, "
-        "which may not always align with the most clinically intuitive factors."
+    st.subheader("What typically drives this model's predictions?")
+    st.markdown(
+        "Based on SHAP analysis performed during model development, this "
+        "model's predictions are influenced by factors including prior "
+        "hospital visit history, medication patterns, diagnosis category, "
+        "and admission details. Live per-patient SHAP explanations are not "
+        "shown here, as this deep Random Forest model produced numerically "
+        "unstable SHAP outputs for individual predictions during testing "
+        "(a known limitation of TreeExplainer on unconstrained tree "
+        "ensembles). Full global and individual SHAP analysis, computed "
+        "and verified offline, is documented in the project notebook."
     )
 
 st.divider()
