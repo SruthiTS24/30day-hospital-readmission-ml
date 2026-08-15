@@ -17,8 +17,15 @@ st.set_page_config(page_title="30-Day Readmission Risk Predictor", layout="cente
 # on Google Drive and downloaded once on first app run.
 # Replace YOUR_FILE_ID_HERE with the actual Google Drive file ID.
 # ---------------------------------------------------------
+# ---------------------------------------------------------
+# Resolve paths relative to THIS script's location, since
+# Streamlit Cloud's working directory is the repo root,
+# not the folder containing app.py
+# ---------------------------------------------------------
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 MODEL_FILE_ID = "1LMIdPhmHcd3ILx0AAWzriFx2BEj-5KWa"
-MODEL_PATH = "rf_tuned_model.pkl"
+MODEL_PATH = os.path.join(SCRIPT_DIR, "rf_tuned_model.pkl")
 
 def ensure_model_downloaded():
     if not os.path.exists(MODEL_PATH):
@@ -32,10 +39,10 @@ def ensure_model_downloaded():
 @st.cache_resource
 def load_artifacts():
     ensure_model_downloaded()
-    rf_tuned = joblib.load("rf_tuned_model.pkl")
-    feature_columns = joblib.load("feature_columns.pkl")
-    final_threshold = joblib.load("final_threshold.pkl")
-    default_row = joblib.load("default_row.pkl")
+    rf_tuned = joblib.load(MODEL_PATH)
+    feature_columns = joblib.load(os.path.join(SCRIPT_DIR, "feature_columns.pkl"))
+    final_threshold = joblib.load(os.path.join(SCRIPT_DIR, "final_threshold.pkl"))
+    default_row = joblib.load(os.path.join(SCRIPT_DIR, "default_row.pkl"))
     rf_model_only = rf_tuned.named_steps["rf"]
     explainer = shap.TreeExplainer(rf_model_only)
     return rf_tuned, feature_columns, final_threshold, default_row, explainer
