@@ -4,7 +4,7 @@ A full end-to-end data science project predicting 30-day hospital readmission ri
 
 **Author:** Sruthi T S
 
-**Affiliation:** Entri Elevate
+**Organization:** Entri Elevate
 
 **Project Date:** August 21, 2026
 
